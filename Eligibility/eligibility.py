@@ -1,11 +1,10 @@
+import re
 import cv2
 import pytesseract
 import re
 from datetime import datetime
 
-# --------------------------------------------------
-# VERHOEFF ALGORITHM TABLES (For Aadhaar Validation)
-# --------------------------------------------------
+# ================= VERHOEFF =================
 
 d = [
     [0,1,2,3,4,5,6,7,8,9],
@@ -39,108 +38,55 @@ def validate_verhoeff(number):
     return c == 0
 
 
-# ==================================================
-#              BANK ELIGIBILITY SYSTEM
-# ==================================================
+class EligibilityChecker:
 
-print("="*55)
-print("        BANK ACCOUNT ELIGIBILITY SYSTEM")
-print("="*55)
+    @staticmethod
+    def check_eligibility():
+        print("\n===== ELIGIBILITY CHECK =====")
 
-# --------------------------------------------------
-# STEP 1: Load Image
-# --------------------------------------------------
+        manual = input("Enter Aadhaar manually? (yes/no): ").lower()
 
-print("\n📄 Reading Aadhaar Document...")
+        if manual == "yes":
+            aadhaar = input("Enter Aadhaar (12 digits): ").replace(" ", "")
+        else:
+            image_path = input("Enter Aadhaar image path: ")
+            image = cv2.imread(image_path)
+            if image is None:
+                print("Image not found.")
+                return None
 
-image_path = "aadhar.jpeg"   # Make sure filename matches exactly
-image = cv2.imread(image_path)
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            text = pytesseract.image_to_string(gray)
+            match = re.findall(r'\d{4}\s\d{4}\s\d{4}', text)
 
-if image is None:
-    print("❌ Image not found. Keep aadhar.jpeg in this folder.")
-    exit()
+            if not match:
+                print("Aadhaar not found.")
+                return None
 
-print("✅ Document Loaded Successfully")
+            aadhaar = match[0].replace(" ", "")
 
+        if len(aadhaar) != 12 or not validate_verhoeff(aadhaar):
+            print("Invalid Aadhaar.")
+            return None
 
-# --------------------------------------------------
-# STEP 2: Preprocess (Resize Only - No Damage)
-# --------------------------------------------------
+        dob = input("Enter DOB (DD/MM/YYYY): ")
 
-gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        try:
+            birth = datetime.strptime(dob, "%d/%m/%Y")
+        except:
+            print("Invalid DOB.")
+            return None
 
-# Resize for better OCR accuracy
-gray = cv2.resize(gray, None, fx=2, fy=2, interpolation=cv2.INTER_CUBIC)
-text = pytesseract.image_to_string(gray)
+        today = datetime.today()
+        age = today.year - birth.year - ((today.month, today.day) < (birth.month, birth.day))
 
+        if age < 18:
+            print("Not eligible.")
+            return None
 
-# --------------------------------------------------
-# STEP 3: Extract Aadhaar Number
-# --------------------------------------------------
-
-print("\n🔎 Extracting Aadhaar Number...")
-
-aadhaar_match = re.findall(r'\d{4}\s\d{4}\s\d{4}', text)
-
-if not aadhaar_match:
-    print("❌ Aadhaar Number Not Found")
-    exit()
-
-aadhaar_display = aadhaar_match[0]
-aadhaar_number = aadhaar_display.replace(" ", "")
-
-print(f"✅ Aadhaar Detected: {aadhaar_display}")
+        print("Eligible for account creation.")
+        return aadhaar
 
 
-# --------------------------------------------------
-# STEP 4: Validate Aadhaar
-# --------------------------------------------------
-
-print("\n🔐 Validating Aadhaar Number...")
-
-if validate_verhoeff(aadhaar_number):
-    print("✅ Aadhaar is Mathematically Valid")
-else:
-    print("❌ Aadhaar Failed Validation")
-    exit()
-
-
-# --------------------------------------------------
-# STEP 5: Manual DOB Entry (Reliable)
-# --------------------------------------------------
-
-print("\n📅 Date of Birth Verification")
-print("-"*40)
-
-dob = input("Enter DOB (DD/MM/YYYY): ")
-
-try:
-    birth_date = datetime.strptime(dob, "%d/%m/%Y")
-except:
-    print("❌ Invalid DOB Format")
-    exit()
-
-today = datetime.today()
-age = today.year - birth_date.year - (
-    (today.month, today.day) < (birth_date.month, birth_date.day)
-)
-
-print(f"🎂 Calculated Age: {age} years")
-
-
-# --------------------------------------------------
-# FINAL ELIGIBILITY RESULT
-# --------------------------------------------------
-
-print("\n" + "="*55)
-
-if age >= 18:
-    print("🎉 RESULT: CUSTOMER IS ELIGIBLE")
-    print("✔ Age Criteria Satisfied (18+)")
-else:
-    print("❌ RESULT: CUSTOMER IS NOT ELIGIBLE")
-    print("✖ Age Below 18")
-
-print("="*55)
-print("        VERIFICATION COMPLETE")
-print("="*55)
+if __name__ == "__main__":
+    EligibilityChecker.check_eligibility()

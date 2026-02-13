@@ -1,34 +1,39 @@
 import csv
 from datetime import datetime
-import os
+from Account_Creation.account_repo import AccountRepository, TRANSACTIONS_FILE
 
 class DepositSystem:
-    def __init__(self, balance, filepath):
-        self.balance = balance
-        self.filepath = filepath
 
-    def deposit_money(self, amount):
+    @staticmethod
+    def deposit_money(account_no, amount):
+
         if amount <= 0:
-            print("❌ Invalid amount! Deposit must be positive.")
+            print("Invalid amount.")
             return False
-        
-        self.update_balance(amount)
-        self.update_csv(amount)
-        print("✅ Amount deposited successfully.")
-        return True
 
-    def update_balance(self, amount):
-        self.balance += amount
+        accounts = AccountRepository.load_accounts()
 
-    def update_csv(self, amount):
+        if account_no not in accounts:
+            print("Account not found.")
+            return False
+
+        current = float(accounts[account_no]["Balance"])
+        new_balance = current + amount
+
+        AccountRepository.update_balance(account_no, new_balance)
+
         now = datetime.now()
-        date = now.strftime("%Y-%m-%d")
-        time = now.strftime("%H:%M:%S")
 
-        with open(self.filepath, "a", newline="") as file:
-            writer = csv.writer(file)
-            writer.writerow([date, time, amount, self.balance])
+        with open(TRANSACTIONS_FILE, "a", newline="") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                account_no,
+                now.strftime("%Y-%m-%d"),
+                now.strftime("%H:%M:%S"),
+                "Deposit",
+                amount,
+                new_balance
+            ])
 
-    def show_balance(self):
-        print(f"💰 Updated balance: ₹ {self.balance}")
-        return self.balance
+        print("Deposit successful. New balance:", new_balance)
+        return True
